@@ -4,8 +4,14 @@ import pytorch_lightning as pl
 
 from torch.utils.data import DataLoader
 from pytorchvideo.data import LabeledVideoDataset, UniformClipSampler
+from torchvideo.transforms import NormalizeVideo
 from torchvision.transforms import Compose, Resize
-from pytorchvideo.transforms import ApplyTransformToKey, UniformTemporalSubsample, Div255
+from pytorchvideo.transforms import (
+    ApplyTransformToKey,
+    UniformTemporalSubsample,
+    Div255,
+    ShortSideScale,
+)
 from sklearn.model_selection import train_test_split
 
 from utils.config import TRAIN_FOLDER, TRAIN_LABELS_FILE, TEST_FOLDER, SEED
@@ -35,6 +41,7 @@ class FakeVideoDataModule(pl.LightningDataModule):
         frames_per_video=16,
         framesize=256,
         vid_duration=5.0,
+        transforms=None,
     ):
         super().__init__()
 
@@ -55,19 +62,10 @@ class FakeVideoDataModule(pl.LightningDataModule):
         #     os.path.join(TEST_FOLDER, fname) for fname in os.listdir(TEST_FOLDER)
         # ]
 
-        self.transforms = Compose(
-            [
-                ApplyTransformToKey(
-                    key="video",
-                    transform=Compose(
-                        [
-                            UniformTemporalSubsample(self.frames_per_video),
-                            Resize(self.framesize),
-                            Div255(),
-                        ]
-                    ),
-                )
-            ]
+        self.transforms = (
+            transforms
+            if transforms
+            else get_basic_transform(self.framesize, self.frames_per_video)
         )
 
     def create_dataloader(self, vids):
@@ -91,3 +89,40 @@ class FakeVideoDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         return self.create_dataloader(self.val_vids)
 
+
+def get_basic_transform(framesize=256, frames_per_video=8):
+    return Compose(
+        [
+            ApplyTransformToKey(
+                key="video",
+                transform=Compose(
+                    [
+                        UniformTemporalSubsample(frames_per_video),
+                        Resize(framesize),
+                        Div255(),
+                    ]
+                ),
+            )
+        ]
+    )
+
+
+def get_resnet_transform(
+    side_size=256,
+    mean=[0.45, 0.45, 0.45],
+    std=[0.225, 0.225, 0.225],
+    num_frames=8,
+    # frames_per_second = 30,
+):
+
+    return ApplyTransformToKey(
+        key="video",
+        transform=Compose(
+            [
+                UniformTemporalSubsample(num_frames),
+                Div255(),
+                NormalizeVideo(mean, std),
+                ShortSideScale(size=side_size),
+            ]
+        ),
+    )
