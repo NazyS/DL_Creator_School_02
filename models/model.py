@@ -17,18 +17,30 @@ def create_resnet(model_depth=50):
 
 
 class FakeVideoDetector(pl.LightningModule):
-    def __init__(self, model=create_resnet(), pos_weight=None, lr=0.01):
+    def __init__(
+        self, model=create_resnet(), pos_weight=None, lr=0.1, out_features=None
+    ):
         super().__init__()
 
         self.lr = lr
+        self.out_features = out_features
 
         self.model = model
+        if self.out_features:
+            self.out_layer = nn.Linear(self.out_features, 1)
+
         self.metrics = MetricCollection([Accuracy(), AUROC(),])
 
         self.loss = nn.BCEWithLogitsLoss(pos_weight)
+        self.sigmoid = nn.Sigmoid()
+
+        self.save_hyperparameters()
 
     def forward(self, x):
-        return self.model(x)
+        x = self.model(x)
+        if self.out_features:
+            x = self.out_layer(x)
+        return x
 
     def training_step(self, batch, batch_idx):
         # The model expects a video tensor of shape (B, C, T, H, W), which is the
@@ -45,8 +57,11 @@ class FakeVideoDetector(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         y_hat = self(batch["video"])
         labels = batch["label"]
+
         loss = self.loss(y_hat, labels)
-        self.metrics.update(y_hat, labels.type(torch.int32))
+        probas = self.sigmoid(y_hat)
+
+        self.metrics.update(probas, labels.type(torch.int32))
         self.log("val_loss", loss)
         return loss
 
@@ -59,20 +74,3 @@ class FakeVideoDetector(pl.LightningModule):
         usually useful for training video models.
         """
         return torch.optim.Adam(self.parameters(), lr=self.lr)
-
-
-class PretrainedDetector(FakeVideoDetector):
-
-    def __init__(self, model, pos_weight=None, out_features=None):
-        super().__init__(model=model, pos_weight=pos_weight)
-
-        if out_features:
-            self.out_layer = nn.Linear(out_features, 1)
-        else:
-            self.out_layer = nn.Linear(self.model.fc.out_features, 1)
-        
-
-    def forward(self, x):
-        x = self.model(x)
-        x = self.out_layer(x)
-        return x

@@ -108,11 +108,7 @@ def get_basic_transform(framesize=256, frames_per_video=8):
 
 
 def get_resnet_transform(
-    side_size=256,
-    mean=[0.45, 0.45, 0.45],
-    std=[0.225, 0.225, 0.225],
-    num_frames=8,
-    # frames_per_second = 30,
+    side_size=256, mean=[0.45, 0.45, 0.45], std=[0.225, 0.225, 0.225], num_frames=8,
 ):
 
     return ApplyTransformToKey(
