@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import pytorch_lightning as pl
 
+from torchmetrics import MetricCollection, AUROC, Accuracy
 from pytorchvideo.models import resnet
 
 
@@ -20,6 +21,7 @@ class FakeVideoDetector(pl.LightningModule):
         super().__init__()
 
         self.model = model
+        self.metrics = MetricCollection([Accuracy(), AUROC(),])
 
         self.loss = nn.BCEWithLogitsLoss()
 
@@ -40,9 +42,14 @@ class FakeVideoDetector(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         y_hat = self.model(batch["video"])
-        loss = self.loss(y_hat, batch["label"])
+        labels = batch["label"]
+        loss = self.loss(y_hat, labels)
+        self.metrics.update(y_hat, labels.type(torch.int32))
         self.log("val_loss", loss)
         return loss
+
+    def validation_epoch_end(self, outputs):
+        self.log_dict(self.metrics.compute())
 
     def configure_optimizers(self):
         """

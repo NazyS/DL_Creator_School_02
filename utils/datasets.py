@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from pytorchvideo.data import LabeledVideoDataset, UniformClipSampler
 from torchvision.transforms import Compose, Resize
-from pytorchvideo.transforms import ApplyTransformToKey, UniformTemporalSubsample
+from pytorchvideo.transforms import ApplyTransformToKey, UniformTemporalSubsample, Div255
 from sklearn.model_selection import train_test_split
 
 from utils.config import TRAIN_FOLDER, TRAIN_LABELS_FILE, TEST_FOLDER, SEED
@@ -63,6 +63,7 @@ class FakeVideoDataModule(pl.LightningDataModule):
                         [
                             UniformTemporalSubsample(self.frames_per_video),
                             Resize(self.framesize),
+                            Div255(),
                         ]
                     ),
                 )
