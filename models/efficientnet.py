@@ -76,7 +76,11 @@ class PretrainedEfficientNet(pl.LightningModule):
         scheduler = ReduceLROnPlateau(
             optimizer, mode="min", factor=0.1, patience=2, min_lr=1e-6, verbose=True
         )
-        return [optimizer], [scheduler]
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler,
+            "monitor": "AUROC",
+        }
 
 
 def get_effnet_transform(side_size=224,):
