@@ -2,7 +2,12 @@ import torch
 import torchvision.models as models
 
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint, BackboneFinetuning
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    ModelCheckpoint,
+    BackboneFinetuning,
+    LearningRateMonitor,
+)
 
 from models.model import FakeVideoDetector, create_resnet
 from models.efficientnet import PretrainedEfficientNet, get_effnet_transform
@@ -33,6 +38,7 @@ if __name__ == "__main__":
             monitor="AUROC",
             mode="max",
         ),
+        LearningRateMonitor(),
     ]
 
     trainer = Trainer(
